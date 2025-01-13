@@ -1,3 +1,4 @@
+import 'package:booknow/services/auth_service.dart';
 import 'package:flutter/material.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -26,14 +27,55 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
-  void _handleSubmit() {
-    if (_formKey.currentState!.validate()) {
-      // TODO: Implement authentication logic
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_isLogin ? 'Processing Login...' : 'Processing Registration...'),
-        ),
-      );
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
+  Future<void> _handleSubmit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+  FocusScope.of(context).unfocus(); // Hide keyboard
+
+    try {
+      Map<String, dynamic> result;
+
+      if (_isLogin) {
+        // Handle Login
+        result = await _authService.signIn(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+      } else {
+        // Handle Registration (always as patient)
+        result = await _authService.register(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          fullName: _nameController.text.trim(),
+        );
+      }
+
+      if (mounted) {
+        if (result['success']) {
+          // Navigate based on role
+          String role = result['role'];
+          if (role == 'doctor') {
+            Navigator.pushReplacementNamed(
+              context,
+              "/doctor-dashboard",
+            );
+          } else {
+            Navigator.pushReplacementNamed(context, "/patient-dashboard");
+          }
+        } else {
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result['message'])),
+          );
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -145,7 +187,8 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                           onPressed: () {
                             setState(() {
-                              _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                              _isConfirmPasswordVisible =
+                                  !_isConfirmPasswordVisible;
                             });
                           },
                         ),
@@ -170,11 +213,19 @@ class _AuthScreenState extends State<AuthScreen> {
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: _handleSubmit,
-                      child: Text(
-                        _isLogin ? 'Login' : 'Register',
-                        style: const TextStyle(fontSize: 16),
-                      ),
+                      onPressed: _isLoading ? null : _handleSubmit,
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              _isLogin ? 'Login' : 'Register',
+                              style: const TextStyle(fontSize: 16),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 16),

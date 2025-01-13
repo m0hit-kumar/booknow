@@ -1,9 +1,14 @@
  
-import 'package:booknow/screens/login_screen.dart';
-import 'package:booknow/screens/patient_dashboard.dart';
+import 'package:booknow/firebase_options.dart';
+import 'package:booknow/routes.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+);
   runApp(const MyApp());
 }
 
@@ -12,7 +17,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home:   AuthScreen(),
+      initialRoute: '/login',
+    routes: appRoutes,
     );
   }
 }
