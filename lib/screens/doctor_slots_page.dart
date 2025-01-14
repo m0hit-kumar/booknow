@@ -110,7 +110,30 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
     
     weekDates = List.generate(7, (index) => monday.add(Duration(days: index)));
   }
-
+ String _minutesToTimeString(int minutes) {
+    int hours = minutes ~/ 60;
+    int mins = minutes % 60;
+    return '${hours.toString().padLeft(2, '0')}:${mins.toString().padLeft(2, '0')}';
+  }
+   Future<void> _selectTimeRange() async {
+    final TimeOfDay? newStartTime = await showTimePicker(
+      context: context,
+      initialTime: startTime,
+    );
+    if (newStartTime != null) {
+      final TimeOfDay? newEndTime = await showTimePicker(
+        context: context,
+        initialTime: endTime,
+      );
+      if (newEndTime != null) {
+        setState(() {
+          startTime = newStartTime;
+          endTime = newEndTime;
+          _generateTimeSlots();
+        });
+      }
+    }
+  }
   void _generateTimeSlots({bool preserveExisting = false}) {
     Map<String, List<String>> newGeneratedSlots = {};
     Map<String, Map<String, bool>> newSlotAvailability = {};
@@ -160,89 +183,10 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
     final today = DateTime.now();
     return date.isBefore(DateTime(today.year, today.month, today.day));
   }
-
-  Future<void> _publishSlots({bool weeklyPublish = false}) async {
-    try {
-      final slots = {};
-      final dates = weeklyPublish ? weekDates : [selectedDate];
-      
-      for (DateTime date in dates) {
-        String dateStr = DateFormat('yyyy-MM-dd').format(date);
-        
-        // Skip past dates
-        if (_isPastDate(dateStr)) continue;
-        
-        slots[dateStr] = generatedSlots[dateStr]?.map((slot) {
-          // Preserve booked status
-          bool isBooked = bookedSlots[dateStr]?[slot] ?? false;
-          return {
-            'time': slot,
-            'isAvailable': isBooked ? false : (slotAvailability[dateStr]?[slot] ?? false),
-            'isBooked': isBooked,
-            'bufferTime': slotBuffers[dateStr]?[slot] ?? bufferTime,
-          };
-        }).toList();
-      }
-
-      await _firestore.collection('appointments').doc(widget.doctorId).set({
-        'slots': slots,
-        'settings': {
-          'slotDuration': slotDuration,
-          'defaultBuffer': bufferTime,
-          'startTime': _timeOfDayToString(startTime),
-          'endTime': _timeOfDayToString(endTime),
-        },
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Schedule published successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to publish schedule: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  String _timeOfDayToString(TimeOfDay time) {
+    String _timeOfDayToString(TimeOfDay time) {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
-
- 
-  String _minutesToTimeString(int minutes) {
-    int hours = minutes ~/ 60;
-    int mins = minutes % 60;
-    return '${hours.toString().padLeft(2, '0')}:${mins.toString().padLeft(2, '0')}';
-  }
-
-  Future<void> _selectTimeRange() async {
-    final TimeOfDay? newStartTime = await showTimePicker(
-      context: context,
-      initialTime: startTime,
-    );
-    if (newStartTime != null) {
-      final TimeOfDay? newEndTime = await showTimePicker(
-        context:  context,
-        initialTime: endTime,
-      );
-      if (newEndTime != null) {
-        setState(() {
-          startTime = newStartTime;
-          endTime = newEndTime;
-          _generateTimeSlots();
-        });
-      }
-    }
-  }
-
-  Future<void> _configureSlotSettings() async {
+ Future<void> _configureSlotSettings() async {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -298,7 +242,8 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
     );
   }
 
-  Future<void> _setBufferTime(String date, String slot) async {
+
+Future<void> _setBufferTime(String date, String slot) async {
     final controller = TextEditingController(
       text: slotBuffers[date]?[slot].toString(),
     );
@@ -331,13 +276,61 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
       ),
     );
   }
+   Future<void> _publishSlots({bool weeklyPublish = false}) async {
+    try {
+      final slots = {};
+      final dates = weeklyPublish ? weekDates : [selectedDate];
+      
+      for (DateTime date in dates) {
+        String dateStr = DateFormat('yyyy-MM-dd').format(date);
+        
+        // Skip past dates
+        if (_isPastDate(dateStr)) continue;
+        
+        slots[dateStr] = generatedSlots[dateStr]?.map((slot) {
+          // Preserve booked status
+          bool isBooked = bookedSlots[dateStr]?[slot] ?? false;
+          return {
+            'time': slot,
+            'isAvailable': isBooked ? false : (slotAvailability[dateStr]?[slot] ?? false),
+            'isBooked': isBooked,
+            'bufferTime': slotBuffers[dateStr]?[slot] ?? bufferTime,
+          };
+        }).toList();
+      }
 
-  
+      await _firestore.collection('appointments').doc(widget.doctorId).set({
+        'slots': slots,
+        'settings': {
+          'slotDuration': slotDuration,
+          'defaultBuffer': bufferTime,
+          'startTime': _timeOfDayToString(startTime),
+          'endTime': _timeOfDayToString(endTime),
+        },
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Schedule published successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to publish schedule: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-     String dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
-    bool isPastDate = _isPastDate(dateStr);
-    
+    String dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
+        bool isPastDate = _isPastDate(dateStr);
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -367,7 +360,7 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha:0.05),
+                  color: Colors.black.withOpacity(0.05),
                   blurRadius: 10,
                   offset: Offset(0, 4),
                 ),
@@ -522,10 +515,10 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
                           child: Container(
                             decoration: BoxDecoration(
                               color: isBooked 
-                                  ? Colors.grey.withValues(alpha:0.1)
+                                  ? Colors.grey.withOpacity(0.1)
                                   : isAvailable 
-                                      ? Colors.green.withValues(alpha:0.1) 
-                                      : Colors.red.withValues(alpha:0.1),
+                                      ? Colors.green.withOpacity(0.1) 
+                                      : Colors.red.withOpacity(0.1),
                               border: Border.all(
                                 color: isBooked 
                                     ? Colors.grey
