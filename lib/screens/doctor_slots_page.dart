@@ -8,7 +8,7 @@ class DoctorWeeklySlotPage extends StatefulWidget {
   const DoctorWeeklySlotPage({super.key, required this.doctorId});
 
   @override
-  _DoctorWeeklySlotPageState createState() => _DoctorWeeklySlotPageState();
+  State<DoctorWeeklySlotPage> createState() => _DoctorWeeklySlotPageState();
 }
 
 class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
@@ -24,6 +24,7 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
   Map<String, List<String>> generatedSlots = {};
   Map<String, Map<String, bool>> slotAvailability = {};
   Map<String, Map<String, int>> slotBuffers = {};
+  Map<String, Map<String, bool>> bookedSlots = {}; // Track booked slots
 
   @override
   void initState() {
@@ -38,13 +39,13 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
       final doc = await _firestore.collection('appointments').doc(widget.doctorId).get();
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
-        // Load existing configuration if available
+        
+        // Load settings
         if (data.containsKey('settings')) {
           final settings = data['settings'] as Map<String, dynamic>;
           setState(() {
             slotDuration = settings['slotDuration'] ?? 30;
             bufferTime = settings['defaultBuffer'] ?? 10;
-            // Parse time strings back to TimeOfDay
             final startTimeStr = settings['startTime']?.split(':');
             final endTimeStr = settings['endTime']?.split(':');
             if (startTimeStr != null && startTimeStr.length == 2) {
@@ -61,7 +62,35 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
             }
           });
         }
-        _generateTimeSlots();
+
+        // Load existing slots and their status
+        if (data.containsKey('slots')) {
+          final slots = data['slots'] as Map<String, dynamic>;
+          slots.forEach((date, slotList) {
+            if (slotList is List) {
+              bookedSlots[date] = {};
+              slotAvailability[date] = {};
+              slotBuffers[date] = {};
+              
+              for (var slotData in slotList) {
+                if (slotData is Map) {
+                  final time = slotData['time'] as String;
+                  final isAvailable = slotData['isAvailable'] as bool;
+                  final isBooked = slotData['isBooked'] ?? false;
+                  final bufferTime = slotData['bufferTime'] as int;
+
+                  if (isBooked) {
+                    bookedSlots[date]![time] = true;
+                  }
+                  slotAvailability[date]![time] = isAvailable;
+                  slotBuffers[date]![time] = bufferTime;
+                }
+              }
+            }
+          });
+        }
+
+        _generateTimeSlots(preserveExisting: true);
       }
     } catch (e) {
       print('Error loading existing slots: $e');
@@ -69,20 +98,23 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
   }
 
   void _generateWeekDates() {
+    DateTime today = DateTime.now();
     DateTime monday = selectedDate.subtract(
       Duration(days: selectedDate.weekday - 1),
     );
+    
+    // Ensure we don't generate dates before today
+    if (monday.isBefore(today)) {
+      monday = today;
+    }
+    
     weekDates = List.generate(7, (index) => monday.add(Duration(days: index)));
   }
 
-  String _timeOfDayToString(TimeOfDay time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-  }
-
-  void _generateTimeSlots() {
-    generatedSlots.clear();
-    slotAvailability.clear();
-    slotBuffers.clear();
+  void _generateTimeSlots({bool preserveExisting = false}) {
+    Map<String, List<String>> newGeneratedSlots = {};
+    Map<String, Map<String, bool>> newSlotAvailability = {};
+    Map<String, Map<String, int>> newSlotBuffers = {};
 
     for (DateTime date in weekDates) {
       String dateStr = DateFormat('yyyy-MM-dd').format(date);
@@ -98,19 +130,92 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
         String slot = '${_minutesToTimeString(startMinutes)} - ${_minutesToTimeString(endSlotMinutes)}';
         
         dailySlots.add(slot);
-        dailyAvailability[slot] = true;
-        dailyBuffers[slot] = bufferTime;
+        
+        // Preserve existing slot settings or use defaults
+        if (preserveExisting && slotAvailability.containsKey(dateStr) && slotAvailability[dateStr]!.containsKey(slot)) {
+          dailyAvailability[slot] = slotAvailability[dateStr]![slot]!;
+          dailyBuffers[slot] = slotBuffers[dateStr]![slot]!;
+        } else {
+          dailyAvailability[slot] = true;
+          dailyBuffers[slot] = bufferTime;
+        }
         
         startMinutes = endSlotMinutes + bufferTime;
       }
 
-      generatedSlots[dateStr] = dailySlots;
-      slotAvailability[dateStr] = dailyAvailability;
-      slotBuffers[dateStr] = dailyBuffers;
+      newGeneratedSlots[dateStr] = dailySlots;
+      newSlotAvailability[dateStr] = dailyAvailability;
+      newSlotBuffers[dateStr] = dailyBuffers;
     }
-    setState(() {});
+
+    setState(() {
+      generatedSlots = newGeneratedSlots;
+      slotAvailability = newSlotAvailability;
+      slotBuffers = newSlotBuffers;
+    });
   }
 
+  bool _isPastDate(String dateStr) {
+    final date = DateFormat('yyyy-MM-dd').parse(dateStr);
+    final today = DateTime.now();
+    return date.isBefore(DateTime(today.year, today.month, today.day));
+  }
+
+  Future<void> _publishSlots({bool weeklyPublish = false}) async {
+    try {
+      final slots = {};
+      final dates = weeklyPublish ? weekDates : [selectedDate];
+      
+      for (DateTime date in dates) {
+        String dateStr = DateFormat('yyyy-MM-dd').format(date);
+        
+        // Skip past dates
+        if (_isPastDate(dateStr)) continue;
+        
+        slots[dateStr] = generatedSlots[dateStr]?.map((slot) {
+          // Preserve booked status
+          bool isBooked = bookedSlots[dateStr]?[slot] ?? false;
+          return {
+            'time': slot,
+            'isAvailable': isBooked ? false : (slotAvailability[dateStr]?[slot] ?? false),
+            'isBooked': isBooked,
+            'bufferTime': slotBuffers[dateStr]?[slot] ?? bufferTime,
+          };
+        }).toList();
+      }
+
+      await _firestore.collection('appointments').doc(widget.doctorId).set({
+        'slots': slots,
+        'settings': {
+          'slotDuration': slotDuration,
+          'defaultBuffer': bufferTime,
+          'startTime': _timeOfDayToString(startTime),
+          'endTime': _timeOfDayToString(endTime),
+        },
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Schedule published successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to publish schedule: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  String _timeOfDayToString(TimeOfDay time) {
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+
+ 
   String _minutesToTimeString(int minutes) {
     int hours = minutes ~/ 60;
     int mins = minutes % 60;
@@ -124,7 +229,7 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
     );
     if (newStartTime != null) {
       final TimeOfDay? newEndTime = await showTimePicker(
-        context: context,
+        context:  context,
         initialTime: endTime,
       );
       if (newEndTime != null) {
@@ -227,47 +332,11 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
     );
   }
 
-  Future<void> _publishSlots() async {
-    try {
-      final slots = {};
-      for (String date in generatedSlots.keys) {
-        slots[date] = generatedSlots[date]?.map((slot) => {
-          'time': slot,
-          'isAvailable': slotAvailability[date]?[slot] ?? false,
-          'bufferTime': slotBuffers[date]?[slot] ?? bufferTime,
-        }).toList();
-      }
-
-      await _firestore.collection('appointments').doc(widget.doctorId).set({
-        'slots': slots,
-        'settings': {
-          'slotDuration': slotDuration,
-          'defaultBuffer': bufferTime,
-          'startTime': _timeOfDayToString(startTime),
-          'endTime': _timeOfDayToString(endTime),
-        },
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Schedule published successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to publish schedule: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
+  
   @override
   Widget build(BuildContext context) {
-    String dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
+     String dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
+    bool isPastDate = _isPastDate(dateStr);
     
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -298,7 +367,7 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha:0.05),
                   blurRadius: 10,
                   offset: Offset(0, 4),
                 ),
@@ -425,7 +494,7 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
           ),
 
           // Time Slots Grid
-          Expanded(
+           Expanded(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: generatedSlots[dateStr] == null
@@ -440,19 +509,29 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
                       itemCount: generatedSlots[dateStr]?.length ?? 0,
                       itemBuilder: (context, index) {
                         String slot = generatedSlots[dateStr]![index];
+                        bool isBooked = bookedSlots[dateStr]?[slot] ?? false;
                         bool isAvailable = slotAvailability[dateStr]?[slot] ?? true;
+                        
                         return GestureDetector(
-                          onTap: () {
+                          onTap: isBooked || isPastDate ? null : () {
                             setState(() {
                               slotAvailability[dateStr]?[slot] = !isAvailable;
                             });
                           },
-                          onLongPress: () => _setBufferTime(dateStr, slot),
+                          onLongPress: isBooked || isPastDate ? null : () => _setBufferTime(dateStr, slot),
                           child: Container(
                             decoration: BoxDecoration(
-                              color:  isAvailable ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                              color: isBooked 
+                                  ? Colors.grey.withValues(alpha:0.1)
+                                  : isAvailable 
+                                      ? Colors.green.withValues(alpha:0.1) 
+                                      : Colors.red.withValues(alpha:0.1),
                               border: Border.all(
-                                color: isAvailable ? Colors.green : Colors.red,
+                                color: isBooked 
+                                    ? Colors.grey
+                                    : isAvailable 
+                                        ? Colors.green 
+                                        : Colors.red,
                                 width: 1.5,
                               ),
                               borderRadius: BorderRadius.circular(12),
@@ -463,15 +542,25 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
                                 Text(
                                   slot,
                                   style: TextStyle(
-                                    color: isAvailable ? Colors.green.shade700 : Colors.red.shade700,
+                                    color: isBooked 
+                                        ? Colors.grey.shade700
+                                        : isAvailable 
+                                            ? Colors.green.shade700 
+                                            : Colors.red.shade700,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                                 SizedBox(height: 4),
                                 Text(
-                                  'Buffer: ${slotBuffers[dateStr]?[slot] ?? bufferTime}min',
+                                  isBooked 
+                                      ? 'Booked'
+                                      : 'Buffer: ${slotBuffers[dateStr]?[slot] ?? bufferTime}min',
                                   style: TextStyle(
-                                    color: isAvailable ? Colors.green.shade700 : Colors.red.shade700,
+                                    color: isBooked 
+                                        ? Colors.grey.shade700
+                                        : isAvailable 
+                                            ? Colors.green.shade700 
+                                            : Colors.red.shade700,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -484,29 +573,53 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
             ),
           ),
 
-          // Publish Button
-          Padding(
+          // Publish Buttons
+          if (!isPastDate) Padding(
             padding: EdgeInsets.all(20),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _publishSlots,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _publishSlots(weeklyPublish: false),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Publish Day',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                  elevation: 0,
                 ),
-                child: Text(
-                  'Publish Schedule',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _publishSlots(weeklyPublish: true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Publish Week',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ],
