@@ -1,3 +1,4 @@
+import 'package:booknow/services/auth_service.dart';
 import 'package:flutter/material.dart';
 
 class Appointment {
@@ -25,7 +26,7 @@ class PatientDashboard extends StatefulWidget {
 
 class _PatientDashboardState extends State<PatientDashboard> {
   final String patientName = "Rian";
-  
+ final authService =AuthService();
   // Sample appointments
   final List<Appointment> appointments = [
     Appointment(
@@ -43,10 +44,25 @@ class _PatientDashboardState extends State<PatientDashboard> {
     ),
   ];
 
+  void _logout() {
+    authService.signOut();   
+    Navigator.pushReplacementNamed(context, '/login');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+            tooltip: 'Logout',
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -350,47 +366,66 @@ class _PatientDashboardState extends State<PatientDashboard> {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 32, color: Colors.blue),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
+        padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 32, color: Colors.blue),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
+      );
+    
+  }
+
+  void _makeCall(Appointment appointment) {
+    // Placeholder for making a call
+    print('Calling ${appointment.doctorName}');
+  }
+
+  void _cancelAppointment(Appointment appointment) {
+    // Placeholder for canceling the appointment
+    print('Canceling appointment with ${appointment.doctorName}');
+  }
+
+  void _showNotifications(BuildContext context) {
+    // Placeholder for showing notifications
+    showDialog(
+      context: context,
+      builder: (context) => const AlertDialog(
+        title: Text('Notifications'),
+        content: Text('You have no new notifications.'),
       ),
     );
   }
 
   void _showBookAppointmentModal(BuildContext context) {
-    // Implement appointment booking modal
-  }
-
-  void _showNotifications(BuildContext context) {
-    // Implement notifications panel
-  }
-
-  void _makeCall(Appointment appointment) {
-    // Implement call functionality
-  }
-
-  void _cancelAppointment(Appointment appointment) {
-    // Implement appointment cancellation
+    // Placeholder for booking an appointment
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Text('Book a new appointment here!'),
+      ),
+    );
   }
 }

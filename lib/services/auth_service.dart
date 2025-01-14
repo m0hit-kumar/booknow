@@ -111,6 +111,6 @@ class AuthService {
     await _auth.signOut();
   }
 
-  // Get current user
+  
   User? get currentUser => _auth.currentUser;
 }
