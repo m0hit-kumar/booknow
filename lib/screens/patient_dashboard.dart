@@ -1,3 +1,4 @@
+import 'package:booknow/screens/book_appoitment.dart';
 import 'package:booknow/services/auth_service.dart';
 import 'package:flutter/material.dart';
 
@@ -418,14 +419,14 @@ class _PatientDashboardState extends State<PatientDashboard> {
     );
   }
 
-  void _showBookAppointmentModal(BuildContext context) {
-    // Placeholder for booking an appointment
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text('Book a new appointment here!'),
+   void _showBookAppointmentModal(BuildContext context) {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (context) => BookAppointment(
+        patientId:  "kDiPRwSw3CgLK2n7lmcvdpy4SH03",
+        patientName: "patientName", patientPhone: 'pat1',
       ),
-    );
-  }
+    ),
+  );
+}
 }
