@@ -360,7 +360,7 @@ Future<void> _setBufferTime(String date, String slot) async {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha:0.05),
                   blurRadius: 10,
                   offset: Offset(0, 4),
                 ),
@@ -515,10 +515,10 @@ Future<void> _setBufferTime(String date, String slot) async {
                           child: Container(
                             decoration: BoxDecoration(
                               color: isBooked 
-                                  ? Colors.grey.withOpacity(0.1)
+                                  ? Colors.grey.withValues(alpha:0.1)
                                   : isAvailable 
-                                      ? Colors.green.withOpacity(0.1) 
-                                      : Colors.red.withOpacity(0.1),
+                                      ? Colors.green.withValues(alpha:0.1) 
+                                      : Colors.red.withValues(alpha:0.1),
                               border: Border.all(
                                 color: isBooked 
                                     ? Colors.grey

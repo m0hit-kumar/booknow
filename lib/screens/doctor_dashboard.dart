@@ -1,4 +1,5 @@
 import 'package:booknow/screens/doctor_appointments.dart';
+import 'package:booknow/screens/doctor_profile_page.dart';
 import 'package:booknow/screens/doctor_slots_page.dart';
 import 'package:flutter/material.dart';
 
@@ -6,7 +7,7 @@ class DoctorDashboard extends StatefulWidget {
   const DoctorDashboard({super.key});
 
   @override
-  _DoctorDashboardState createState() => _DoctorDashboardState();
+  State<DoctorDashboard> createState() => _DoctorDashboardState();
 }
 
 class _DoctorDashboardState extends State<DoctorDashboard> {
@@ -14,9 +15,9 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
 
   // List of pages corresponding to each navigation item
   final List<Widget> _pages = [
-    DoctorAppointments(),
-    DoctorWeeklySlotPage(doctorId: "doctorId"),
-    Center(child: Text("Profile"),),
+    DoctorAppointments(doctorId: "rWIkaskKuabnDEBfCjjPixgpm4g1", ),
+    DoctorWeeklySlotPage(doctorId: "rWIkaskKuabnDEBfCjjPixgpm4g1"),
+    DoctorProfilePage(userId: "rWIkaskKuabnDEBfCjjPixgpm4g1"),
   ];
 
   void _onItemTapped(int index) {
