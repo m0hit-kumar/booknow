@@ -14,9 +14,10 @@ class DoctorAppointments extends StatefulWidget {
 class _DoctorAppointmentsState extends State<DoctorAppointments> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  late DateTime selectedDate=DateTime.now();
+  late DateTime selectedDate = DateTime.now();
   late List<DateTime> weekDates;
-  Map<String, List<String>> bookedSlots = {};
+  // Changed the type definition here
+  Map<String, List<dynamic>> bookedSlots = {};
 
   @override
   void initState() {
@@ -30,11 +31,44 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
     weekDates = List.generate(7, (index) => monday.add(Duration(days: index)));
   }
 
-  // bool _isPastDate(String dateStr) {
-  //   final date = DateFormat('yyyy-MM-dd').parse(dateStr);
-  //   final today = DateTime.now();
-  //   return date.isBefore(DateTime(today.year, today.month, today.day));
-  // }
+  Future<void> _cancelAppointment(String dateStr, String time) async {
+    try {
+      DocumentReference docRef = _firestore.collection('appointments').doc(widget.doctorId);
+      
+      // Get the current document data
+      DocumentSnapshot doc = await docRef.get();
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      Map<String, dynamic> slots = data['slots'] as Map<String, dynamic>;
+      
+      // Find and update the specific slot
+      List<dynamic> dateSlots = slots[dateStr] as List<dynamic>;
+      int slotIndex = dateSlots.indexWhere((slot) => slot['time'] == time);
+      
+      if (slotIndex != -1) {
+        dateSlots[slotIndex]['isBooked'] = false;
+        dateSlots[slotIndex]['isAvailable'] = false;
+        
+        // Update Firestore
+        await docRef.update({
+          'slots': slots
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Appointment cancelled successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error cancelling appointment: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -110,54 +144,170 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
             ),
           ),
 
-          // Booked Slots Display
+          // Enhanced Booked Slots Display
           Expanded(
             child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
               stream: _firestore.collection('appointments').doc(widget.doctorId).snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return Text('Error: ${snapshot.error}');
+                  return Center(
+                    child: Text(
+                      'Error loading appointments',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  );
                 }
 
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Text('Loading...');
+                  return Center(
+                    child: CircularProgressIndicator(),
+                  );
                 }
 
                 final data = snapshot.data!.data() as Map<String, dynamic>;
                 final slots = data['slots'] as Map<String, dynamic>;
 
                 // Update bookedSlots based on the snapshot
-                bookedSlots = {};
+                bookedSlots.clear();
                 slots.forEach((date, slotList) {
                   if (slotList is List) {
-                    bookedSlots[date] = slotList
+                    bookedSlots[date] = (slotList as List<dynamic>)
                         .where((slotData) => slotData['isBooked'] == true)
-                        .map((slotData) => slotData['time'] as String)
                         .toList();
                   }
                 });
 
-                return Padding(
+                return Container(
                   padding: EdgeInsets.all(20),
-                  child: bookedSlots[dateStr] == null || bookedSlots[dateStr]!.isEmpty
-                      ? Center(
-                          child: Text('No booked slots for this day'),
-                        )
-                      : ListView.builder(
-                          itemCount: bookedSlots[dateStr]!.length,
-                          itemBuilder: (context, index) {
-                            String slot = bookedSlots[dateStr]![index];
-                            return Card(
-                              elevation: 2,
-                              margin: EdgeInsets.symmetric(vertical: 8),
-                              child: ListTile(
-                                title: Text(slot),
-                                subtitle: Text('Booked'),
-                                leading: Icon(Icons.check_circle, color: Colors.green),
-                              ),
-                            );
-                          },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Appointments for ${DateFormat('MMMM d, yyyy').format(selectedDate)}',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
                         ),
+                      ),
+                      SizedBox(height: 20),
+                      Expanded(
+                        child: bookedSlots[dateStr] == null || bookedSlots[dateStr]!.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.event_busy,
+                                      size: 64,
+                                      color: Colors.grey,
+                                    ),
+                                    SizedBox(height: 16),
+                                    Text(
+                                      'No appointments scheduled for this day',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                itemCount: bookedSlots[dateStr]!.length,
+                                itemBuilder: (context, index) {
+                                  final slot = bookedSlots[dateStr]![index] as Map<String, dynamic>;
+                                  return Card(
+                                    elevation: 3,
+                                    margin: EdgeInsets.symmetric(vertical: 8),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                        gradient: LinearGradient(
+                                          colors: [Colors.white, Colors.blue.withOpacity(0.1)],
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerRight,
+                                        ),
+                                      ),
+                                      child: ListTile(
+                                        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                        leading: CircleAvatar(
+                                          backgroundColor: Colors.blue.withOpacity(0.2),
+                                          child: Icon(
+                                            Icons.access_time,
+                                            color: Colors.blue,
+                                          ),
+                                        ),
+                                        title: Text(
+                                          slot['time'] ?? 'No time specified',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            SizedBox(height: 4),
+                                            Text(
+                                              'Patient: ${slot['patientName'] ?? 'Unknown'}',
+                                              style: TextStyle(color: Colors.grey[700]),
+                                            ),
+                                            Text(
+                                              'Phone: ${slot['patientPhone'] ?? 'N/A'}',
+                                              style: TextStyle(color: Colors.grey[700]),
+                                            ),
+                                          ],
+                                        ),
+                                        trailing: TextButton.icon(
+                                          icon: Icon(Icons.cancel, color: Colors.red),
+                                          label: Text(
+                                            'Cancel',
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                          onPressed: () {
+                                            showDialog(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return AlertDialog(
+                                                  title: Text('Cancel Appointment'),
+                                                  content: Text(
+                                                    'Are you sure you want to cancel this appointment?',
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      child: Text('No'),
+                                                      onPressed: () {
+                                                        Navigator.of(context).pop();
+                                                      },
+                                                    ),
+                                                    TextButton(
+                                                      child: Text(
+                                                        'Yes',
+                                                        style: TextStyle(color: Colors.red),
+                                                      ),
+                                                      onPressed: () {
+                                                        Navigator.of(context).pop();
+                                                        _cancelAppointment(dateStr, slot['time']);
+                                                      },
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
