@@ -3,9 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 class DoctorWeeklySlotPage extends StatefulWidget {
-  final String doctorId;
+  final String userId;
 
-  const DoctorWeeklySlotPage({super.key, required this.doctorId});
+  const DoctorWeeklySlotPage({super.key, required this.userId});
 
   @override
   State<DoctorWeeklySlotPage> createState() => _DoctorWeeklySlotPageState();
@@ -36,7 +36,7 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
 
   Future<void> _loadExistingSlots() async {
     try {
-      final doc = await _firestore.collection('appointments').doc(widget.doctorId).get();
+      final doc = await _firestore.collection('appointments').doc(widget.userId).get();
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
         
@@ -299,7 +299,7 @@ Future<void> _setBufferTime(String date, String slot) async {
         }).toList();
       }
 
-      await _firestore.collection('appointments').doc(widget.doctorId).set({
+      await _firestore.collection('appointments').doc(widget.userId).set({
         'slots': slots,
         'settings': {
           'slotDuration': slotDuration,

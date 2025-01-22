@@ -1,5 +1,8 @@
 import 'package:booknow/services/auth_service.dart';
+import 'package:booknow/services/offline_store.dart';
 import 'package:flutter/material.dart';
+
+import '../models/user_model.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -29,21 +32,23 @@ class _AuthScreenState extends State<AuthScreen> {
 
   final AuthService _authService = AuthService();
   bool _isLoading = false;
+  final sharedPrefs = SharedPrefsUtil();
   Future<void> _handleSubmit() async {
+    await sharedPrefs.init();
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-  FocusScope.of(context).unfocus(); // Hide keyboard
+    FocusScope.of(context).unfocus(); // Hide keyboard
 
     try {
       Map<String, dynamic> result;
-
       if (_isLogin) {
         // Handle Login
         result = await _authService.signIn(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
+  
       } else {
         // Handle Registration (always as patient)
         result = await _authService.register(
@@ -57,6 +62,12 @@ class _AuthScreenState extends State<AuthScreen> {
         if (result['success']) {
           // Navigate based on role
           String role = result['role'];
+
+
+      User user = User(name: "", email: _emailController.text.trim(), role: role, userId: result["user"].uid); 
+      sharedPrefs.save("user", user);
+
+          
           if (role == 'doctor') {
             Navigator.pushReplacementNamed(
               context,
@@ -68,7 +79,8 @@ class _AuthScreenState extends State<AuthScreen> {
         } else {
           // Show error message
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(backgroundColor:Colors.red,content: Text(result['message'])),
+            SnackBar(
+                backgroundColor: Colors.red, content: Text(result['message'])),
           );
         }
       }

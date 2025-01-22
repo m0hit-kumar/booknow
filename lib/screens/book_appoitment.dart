@@ -357,10 +357,10 @@ class _BookAppointmentState extends State<BookAppointment> {
                           child: Container(
                             decoration: BoxDecoration(
                               color: isBooked 
-                                  ? Colors.grey.withOpacity(0.1)
+                                  ? Colors.grey.withValues(alpha:0.1)
                                   : isAvailable 
-                                      ? Colors.green.withOpacity(0.1) 
-                                      : Colors.red.withOpacity(0.1),
+                                      ? Colors.green.withValues(alpha:00.1) 
+                                      : Colors.red.withValues(alpha:00.1),
                               border: Border.all(
                                 color: isBooked 
                                     ? Colors.grey

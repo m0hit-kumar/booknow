@@ -1,5 +1,6 @@
 // lib/services/auth_service.dart
 
+import 'package:booknow/services/offline_store.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -13,7 +14,8 @@ class AuthService {
     required String password,
   }) async {
     try {
-      final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+      final UserCredential userCredential =
+          await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -65,7 +67,7 @@ class AuthService {
     required String fullName,
   }) async {
     try {
-      final UserCredential userCredential = 
+      final UserCredential userCredential =
           await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -108,9 +110,11 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
+    final sharedPrefs = SharedPrefsUtil();
+    await sharedPrefs.init();
+    sharedPrefs.remove("user");
     await _auth.signOut();
   }
 
-  
   User? get currentUser => _auth.currentUser;
 }

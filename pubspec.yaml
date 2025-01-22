@@ -39,6 +39,7 @@ dependencies:
   cloud_firestore: ^5.6.1
   intl: ^0.20.1
   table_calendar: ^3.2.0
+  shared_preferences: ^2.3.5
 
 dev_dependencies:
   flutter_test:
