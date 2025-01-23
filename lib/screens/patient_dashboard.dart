@@ -189,7 +189,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
         builder: (context) => BookAppointment(
           patientId: patientId ?? '',
           patientName: user?.name ?? '',
-          patientPhone: '1234567890',
+          patientPhone: 'N/A',
         ),
       ),
     );

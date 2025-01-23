@@ -327,7 +327,7 @@ bool isBookedSlot = isAvailable && isBooked;
 bool isUnavailableSlot = !isAvailable;
 bool isOpenSlot = isAvailable && !isBooked;
                         return GestureDetector(
-                          onTap: isBooked || isPastDate ? null : () {
+                          onTap: !isOpenSlot ? null : () {
                             showDialog(
                               context: context,
                               builder: (BuildContext context) {
