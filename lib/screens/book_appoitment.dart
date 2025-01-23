@@ -316,10 +316,16 @@ class _BookAppointmentState extends State<BookAppointment> {
                       itemBuilder: (context, index) {
                         final slot = dateSlots[index];
                         final time = slot['time'] as String;
-                        final isBooked = slot['isBooked'] ?? false;
-                        final isAvailable = !isBooked && !isPastDate;
+                        // final isBooked = slot['isBooked'] ?? false;
+                        // final isAvailable = !isBooked && !isPastDate;
                         final bufferTime = slot['bufferTime'] ?? this.bufferTime;
+final isBooked = slot['isBooked'] ?? false;
+final isAvailable = slot['isAvailable'] ?? false;
 
+// Determine slot state and color
+bool isBookedSlot = isAvailable && isBooked;
+bool isUnavailableSlot = !isAvailable;
+bool isOpenSlot = isAvailable && !isBooked;
                         return GestureDetector(
                           onTap: isBooked || isPastDate ? null : () {
                             showDialog(
@@ -354,54 +360,57 @@ class _BookAppointmentState extends State<BookAppointment> {
                             );
                           },
                           onLongPress: isBooked || isPastDate ? null : () => _setBufferTime(dateStr, time),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: isBooked 
-                                  ? Colors.grey.withValues(alpha:0.1)
-                                  : isAvailable 
-                                      ? Colors.green.withValues(alpha:00.1) 
-                                      : Colors.red.withValues(alpha:00.1),
-                              border: Border.all(
-                                color: isBooked 
-                                    ? Colors.grey
-                                    : isAvailable 
-                                        ? Colors.green 
-                                        : Colors.red,
-                                width: 1.5,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  time,
-                                  style: TextStyle(
-                                    color: isBooked 
-                                        ? Colors.grey.shade700
-                                        : isAvailable 
-                                            ? Colors.green.shade700 
-                                            : Colors.red.shade700,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  isBooked 
-                                      ? 'Booked'
-                                      : 'Buffer: ${bufferTime}min',
-                                  style: TextStyle(
-                                    color: isBooked 
-                                        ? Colors.grey.shade700
-                                        : isAvailable 
-                                            ? Colors.green.shade700 
-                                            : Colors.red.shade700,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          child: 
+                          Container(
+    decoration: BoxDecoration(
+      color: isBookedSlot 
+          ? Colors.grey.withValues(alpha:0.1)  // Grey when booked
+          : isUnavailableSlot 
+              ? Colors.red.withValues(alpha:0.1)  // Red when unavailable
+              : Colors.green.withValues(alpha:0.1),  // Green when available
+      border: Border.all(
+        color: isBookedSlot 
+            ? Colors.grey 
+            : isUnavailableSlot 
+                ? Colors.red 
+                : Colors.green,
+        width: 1.5,
+      ),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          time,
+          style: TextStyle(
+            color: isBookedSlot 
+                ? Colors.grey.shade700
+                : isUnavailableSlot 
+                    ? Colors.red.shade700 
+                    : Colors.green.shade700,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          isBookedSlot 
+              ? 'Booked'
+              : isUnavailableSlot 
+                  ? 'Unavailable' 
+                  : 'Buffer: ${bufferTime}min',
+          style: TextStyle(
+            color: isBookedSlot 
+                ? Colors.grey.shade700
+                : isUnavailableSlot 
+                    ? Colors.red.shade700 
+                    : Colors.green.shade700,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    ),
+  ),
                         );
                       },
                     ),
