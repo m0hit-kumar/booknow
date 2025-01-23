@@ -24,7 +24,7 @@ class _BookAppointmentState extends State<BookAppointment> {
   late DateTime selectedDate = DateTime.now();
   late List<DateTime> weekDates;
   String? selectedDoctor;
-  int bufferTime = 15; // Default buffer time in minutes
+  int bufferTime = 15; 
   Map<String, Map<String, int>> slotBuffers = {};
 
   @override

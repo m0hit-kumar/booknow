@@ -27,31 +27,31 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
   }
 
   void _generateWeekDates() {
-    DateTime monday = selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
+    DateTime monday =
+        selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
     weekDates = List.generate(7, (index) => monday.add(Duration(days: index)));
   }
 
   Future<void> _cancelAppointment(String dateStr, String time) async {
     try {
-      DocumentReference docRef = _firestore.collection('appointments').doc(widget.doctorId);
-      
+      DocumentReference docRef =
+          _firestore.collection('appointments').doc(widget.doctorId);
+
       // Get the current document data
       DocumentSnapshot doc = await docRef.get();
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
       Map<String, dynamic> slots = data['slots'] as Map<String, dynamic>;
-      
+
       // Find and update the specific slot
       List<dynamic> dateSlots = slots[dateStr] as List<dynamic>;
       int slotIndex = dateSlots.indexWhere((slot) => slot['time'] == time);
-      
+
       if (slotIndex != -1) {
         dateSlots[slotIndex]['isBooked'] = false;
         dateSlots[slotIndex]['isAvailable'] = false;
-        
+
         // Update Firestore
-        await docRef.update({
-          'slots': slots
-        });
+        await docRef.update({'slots': slots});
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -100,7 +100,8 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: List.generate(7, (index) {
-                      bool isSelected = weekDates[index].day == selectedDate.day;
+                      bool isSelected =
+                          weekDates[index].day == selectedDate.day;
                       return GestureDetector(
                         onTap: () {
                           setState(() {
@@ -112,7 +113,8 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
                           margin: EdgeInsets.symmetric(horizontal: 5),
                           padding: EdgeInsets.symmetric(vertical: 10),
                           decoration: BoxDecoration(
-                            color: isSelected ? Colors.blue : Colors.transparent,
+                            color:
+                                isSelected ? Colors.blue : Colors.transparent,
                             borderRadius: BorderRadius.circular(15),
                           ),
                           child: Column(
@@ -120,7 +122,8 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
                               Text(
                                 DateFormat('EEE').format(weekDates[index]),
                                 style: TextStyle(
-                                  color: isSelected ? Colors.white : Colors.grey,
+                                  color:
+                                      isSelected ? Colors.white : Colors.grey,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -128,7 +131,9 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
                               Text(
                                 DateFormat('d').format(weekDates[index]),
                                 style: TextStyle(
-                                  color: isSelected ? Colors.white : Colors.black87,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.black87,
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -147,7 +152,10 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
           // Enhanced Booked Slots Display
           Expanded(
             child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-              stream: _firestore.collection('appointments').doc(widget.doctorId).snapshots(),
+              stream: _firestore
+                  .collection('appointments')
+                  .doc(widget.doctorId)
+                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return Center(
@@ -164,14 +172,22 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
                   );
                 }
 
-                final data = snapshot.data!.data() as Map<String, dynamic>;
+                final data = snapshot.data?.data();
+                if (data == null || data['slots'] == null) {
+                  return Center(
+                    child: Text(
+                      'No appointments found for this doctor.',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  );
+                }
                 final slots = data['slots'] as Map<String, dynamic>;
 
                 // Update bookedSlots based on the snapshot
                 bookedSlots.clear();
                 slots.forEach((date, slotList) {
                   if (slotList is List) {
-                    bookedSlots[date] = (slotList as List<dynamic>)
+                    bookedSlots[date] = (slotList)
                         .where((slotData) => slotData['isBooked'] == true)
                         .toList();
                   }
@@ -192,7 +208,8 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
                       ),
                       SizedBox(height: 20),
                       Expanded(
-                        child: bookedSlots[dateStr] == null || bookedSlots[dateStr]!.isEmpty
+                        child: bookedSlots[dateStr] == null ||
+                                bookedSlots[dateStr]!.isEmpty
                             ? Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -216,7 +233,8 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
                             : ListView.builder(
                                 itemCount: bookedSlots[dateStr]!.length,
                                 itemBuilder: (context, index) {
-                                  final slot = bookedSlots[dateStr]![index] as Map<String, dynamic>;
+                                  final slot = bookedSlots[dateStr]![index]
+                                      as Map<String, dynamic>;
                                   return Card(
                                     elevation: 3,
                                     margin: EdgeInsets.symmetric(vertical: 8),
@@ -227,15 +245,20 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(12),
                                         gradient: LinearGradient(
-                                          colors: [Colors.white, Colors.blue.withOpacity(0.1)],
+                                          colors: [
+                                            Colors.white,
+                                            Colors.blue.withOpacity(0.1)
+                                          ],
                                           begin: Alignment.centerLeft,
                                           end: Alignment.centerRight,
                                         ),
                                       ),
                                       child: ListTile(
-                                        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                        contentPadding: EdgeInsets.symmetric(
+                                            horizontal: 20, vertical: 10),
                                         leading: CircleAvatar(
-                                          backgroundColor: Colors.blue.withOpacity(0.2),
+                                          backgroundColor:
+                                              Colors.blue.withOpacity(0.2),
                                           child: Icon(
                                             Icons.access_time,
                                             color: Colors.blue,
@@ -249,21 +272,25 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
                                           ),
                                         ),
                                         subtitle: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             SizedBox(height: 4),
                                             Text(
                                               'Patient: ${slot['patientName'] ?? 'Unknown'}',
-                                              style: TextStyle(color: Colors.grey[700]),
+                                              style: TextStyle(
+                                                  color: Colors.grey[700]),
                                             ),
                                             Text(
                                               'Phone: ${slot['patientPhone'] ?? 'N/A'}',
-                                              style: TextStyle(color: Colors.grey[700]),
+                                              style: TextStyle(
+                                                  color: Colors.grey[700]),
                                             ),
                                           ],
                                         ),
                                         trailing: TextButton.icon(
-                                          icon: Icon(Icons.cancel, color: Colors.red),
+                                          icon: Icon(Icons.cancel,
+                                              color: Colors.red),
                                           label: Text(
                                             'Cancel',
                                             style: TextStyle(color: Colors.red),
@@ -273,7 +300,8 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
                                               context: context,
                                               builder: (BuildContext context) {
                                                 return AlertDialog(
-                                                  title: Text('Cancel Appointment'),
+                                                  title: Text(
+                                                      'Cancel Appointment'),
                                                   content: Text(
                                                     'Are you sure you want to cancel this appointment?',
                                                   ),
@@ -281,17 +309,22 @@ class _DoctorAppointmentsState extends State<DoctorAppointments> {
                                                     TextButton(
                                                       child: Text('No'),
                                                       onPressed: () {
-                                                        Navigator.of(context).pop();
+                                                        Navigator.of(context)
+                                                            .pop();
                                                       },
                                                     ),
                                                     TextButton(
                                                       child: Text(
                                                         'Yes',
-                                                        style: TextStyle(color: Colors.red),
+                                                        style: TextStyle(
+                                                            color: Colors.red),
                                                       ),
                                                       onPressed: () {
-                                                        Navigator.of(context).pop();
-                                                        _cancelAppointment(dateStr, slot['time']);
+                                                        Navigator.of(context)
+                                                            .pop();
+                                                        _cancelAppointment(
+                                                            dateStr,
+                                                            slot['time']);
                                                       },
                                                     ),
                                                   ],
