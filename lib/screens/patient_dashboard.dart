@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:booknow/models/user_model.dart';
 import 'package:booknow/screens/book_appoitment.dart';
 import 'package:booknow/services/auth_service.dart';
 import 'package:booknow/services/offline_store.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PatientDashboard extends StatefulWidget {
@@ -182,8 +185,15 @@ class _PatientDashboardState extends State<PatientDashboard> {
     return 'Unknown';
   }
 
-  void _showBookAppointmentModal(BuildContext context) {
+  Future<void> _showBookAppointmentModal(BuildContext context) async {
     print("00000000000000000000000000000000${user?.name}");
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+String? userString = prefs.getString('user');
+if (userString != null) {
+  Map<String, dynamic> userMap = json.decode(userString);
+  User retrievedUser = User.fromJson(userMap);
+  print("00000000000000000000000011 ${retrievedUser.name}");
+}
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => BookAppointment(
@@ -201,6 +211,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
         .pushReplacementNamed('/login'); // Adjust according to your route name
   }
 
+bool showBanner = false;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -221,6 +232,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
+            
             return SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
@@ -229,11 +241,12 @@ class _PatientDashboardState extends State<PatientDashboard> {
                   children: [
                     _buildHeader(),
                     const SizedBox(height: 24),
-                    _buildBanner(),
+                    _buildBanner(showBanner),
                     const SizedBox(height: 24),
                     Expanded(
                       child: StreamBuilder<List<Appointment>>(
                         stream: getAppointments(),
+
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
@@ -245,6 +258,9 @@ class _PatientDashboardState extends State<PatientDashboard> {
                                 child: Text('Error loading appointments.'));
                           }
                           final appointments = snapshot.data ?? [];
+                             showBanner = appointments.any((a) => a.status == 'Cancelled');
+                         
+
                           if (appointments.isEmpty) {
                             return const Center(
                                 child: Text('No appointments found.'));
@@ -298,34 +314,37 @@ class _PatientDashboardState extends State<PatientDashboard> {
     );
   }
 
-  Widget _buildBanner() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.red[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red[100]!),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.warning, color: Colors.red),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'One or more appointments have been canceled. Check your schedule.',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.red[700],
-              ),
+ Widget _buildBanner(bool showBanner) {
+  if (!showBanner) return const SizedBox(); // Return empty widget if no cancelled appointments
+
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.red[50],
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.red[100]!),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.warning, color: Colors.red),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'One or more appointments have been canceled. Check your schedule.',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.red[700],
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildAppointmentCard(Appointment appointment) {
+    print("0000000000000000000${appointment.status}");
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -397,19 +416,18 @@ class _PatientDashboardState extends State<PatientDashboard> {
                 ),
               ),
               const SizedBox(width: 12),
-              Expanded(
+             appointment.status!="Cancelled"? Expanded(
                 child: ElevatedButton.icon(
-                  // onPressed: () => _cancelAppointment(appointment),
-                  icon: const Icon(Icons.close),
-                  label: const Text('Cancel'),
+                   icon: const Icon(Icons.close),
+                  label: Text('Cancel'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: appointment.status=="Cancelled"?Colors.grey : Colors.red,
                   ),
                   onPressed: () {
                     _cancelAppointment(appointment);
                   },
                 ),
-              ),
+              ):SizedBox(),
             ],
           ),
         ],

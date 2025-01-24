@@ -532,7 +532,7 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
           // Time Range Display
           Padding(
             padding: EdgeInsets.all(20),
-            child: Row(
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
@@ -583,9 +583,9 @@ class _DoctorWeeklySlotPageState extends State<DoctorWeeklySlotPage> {
                                         !isAvailable;
                                   });
                                 },
-                          onLongPress: isBooked || isPastDate
-                              ? null
-                              : () => _setBufferTime(dateStr, slot),
+                          // onLongPress: isBooked || isPastDate
+                          //     ? null
+                          //     : () => _setBufferTime(dateStr, slot),
                           child: Container(
                             decoration: BoxDecoration(
                               color: isBooked
